@@ -77,7 +77,6 @@ describe('Config', () => {
   //   process.env.DD_TRACE_ENABLED = 'false'
   //   process.env.DD_TRACE_DEBUG = 'true'
   //   process.env.DD_TRACE_AGENT_PROTOCOL_VERSION = '0.5'
-  //   process.env.DD_TRACE_ANALYTICS = 'true'
   //   process.env.DD_SERVICE = 'service'
   //   process.env.DD_VERSION = '1.0.0'
   //   process.env.DD_RUNTIME_METRICS_ENABLED = 'true'
@@ -97,7 +96,6 @@ describe('Config', () => {
   //   expect(config).to.have.property('enabled', false)
   //   expect(config).to.have.property('debug', true)
   //   expect(config).to.have.property('protocolVersion', '0.5')
-  //   expect(config).to.have.property('analytics', true)
   //   expect(config).to.have.property('hostname', 'agent')
   //   expect(config).to.have.nested.property('dogstatsd.hostname', 'dsd-agent')
   //   expect(config).to.have.nested.property('dogstatsd.port', '5218')
@@ -107,7 +105,7 @@ describe('Config', () => {
   //   expect(config).to.have.property('reportHostname', true)
   //   expect(config).to.have.property('env', 'test')
   //   expect(config.tags).to.include({ foo: 'bar', baz: 'qux' })
-  //   expect(config.tags).to.include({ service: 'service', version: '1.0.0', env: 'test' })
+  //   expect(config.tags).to.include({ service: 'service', 'version': '1.0.0', 'env': 'test' })
   //   expect(config).to.have.deep.nested.property('experimental.sampler', { sampleRate: '0.5', rateLimit: '-1' })
   //   expect(config).to.have.nested.property('experimental.b3', true)
   //   expect(config).to.have.nested.property('experimental.runtimeId', true)
@@ -119,14 +117,12 @@ describe('Config', () => {
   it('should read case-insensitive booleans from environment variables', () => {
     process.env.DD_TRACE_ENABLED = 'False'
     process.env.DD_TRACE_DEBUG = 'TRUE'
-    process.env.DD_TRACE_ANALYTICS = '1'
     process.env.DD_RUNTIME_METRICS_ENABLED = '0'
 
     const config = new Config()
 
     expect(config).to.have.property('enabled', false)
     expect(config).to.have.property('debug', true)
-    expect(config).to.have.property('analytics', true)
     expect(config).to.have.property('runtimeMetrics', false)
   })
 
@@ -163,7 +159,6 @@ describe('Config', () => {
       enabled: false,
       debug: true,
       protocolVersion: '0.5',
-      analytics: true,
       site: 'datadoghq.eu',
       hostname: 'agent',
       port: 6218,
@@ -200,7 +195,6 @@ describe('Config', () => {
     expect(config).to.have.property('enabled', false)
     expect(config).to.have.property('debug', true)
     expect(config).to.have.property('protocolVersion', '0.5')
-    expect(config).to.have.property('analytics', true)
     expect(config).to.have.property('site', 'datadoghq.eu')
     expect(config).to.have.property('hostname', 'agent')
     expect(config).to.have.property('port', '6218')
@@ -289,7 +283,6 @@ describe('Config', () => {
     process.env.DD_TRACE_ENABLED = 'false'
     process.env.DD_TRACE_DEBUG = 'true'
     process.env.DD_TRACE_AGENT_PROTOCOL_VERSION = '0.4'
-    process.env.DD_TRACE_ANALYTICS = 'true'
     process.env.DD_SERVICE = 'service'
     process.env.DD_VERSION = '0.0.0'
     process.env.DD_RUNTIME_METRICS_ENABLED = 'true'
@@ -308,7 +301,6 @@ describe('Config', () => {
       enabled: true,
       debug: false,
       protocolVersion: '0.5',
-      analytics: false,
       protocol: 'https',
       site: 'datadoghq.com',
       hostname: 'server',
@@ -336,7 +328,6 @@ describe('Config', () => {
     expect(config).to.have.property('enabled', true)
     expect(config).to.have.property('debug', false)
     expect(config).to.have.property('protocolVersion', '0.5')
-    expect(config).to.have.property('analytics', false)
     expect(config).to.have.nested.property('url.protocol', 'https:')
     expect(config).to.have.nested.property('url.hostname', 'agent2')
     expect(config).to.have.nested.property('url.port', '6218')
@@ -449,5 +440,37 @@ describe('Config', () => {
     expect(config).to.have.property('service', 'service')
     expect(config).to.have.property('version', '0.1.0')
     expect(config).to.have.property('env', 'test')
+  })
+
+  it('should support the serviceMapping environment variable', () => {
+    let origVar
+    if ('DD_SERVICE_MAPPING' in process.env) {
+      origVar = Object.getOwnPropertyDescriptor(process.env, 'DD_SERVICE')
+    }
+    process.env.DD_SERVICE_MAPPING = 'a:aa, b:bb'
+    let config = new Config()
+
+    expect(config.serviceMapping).to.deep.equal({
+      a: 'aa',
+      b: 'bb'
+    })
+
+    if (origVar) {
+      Object.defineProperty(process.env, 'DD_SERVICE', origVar)
+    } else {
+      delete process.env.DD_SERVICE_MAPPING
+    }
+
+    config = new Config()
+
+    expect(config.serviceMapping).to.deep.equal({})
+  })
+
+  it('should trim whitespace characters around keys', () => {
+    process.env.DD_TAGS = 'foo:bar, baz:qux'
+
+    const config = new Config()
+
+    expect(config.tags).to.include({ foo: 'bar', baz: 'qux' })
   })
 })
