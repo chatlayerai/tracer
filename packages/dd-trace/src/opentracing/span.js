@@ -70,6 +70,10 @@ class DatadogSpan extends Span {
     return this._status
   }
 
+  setStatus (status) {
+    this._status = status
+  }
+
   toString () {
     const spanContext = this.context()
     const resourceName = spanContext._tags['resource.name']
