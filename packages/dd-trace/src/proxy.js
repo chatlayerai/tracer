@@ -12,7 +12,6 @@ const log = require('./log')
 const { setStartupLogInstrumenter } = require('./startup-log')
 const NoopSpan = require('./noop/span')
 
-
 const noop = new NoopTracer()
 
 class Tracer extends BaseTracer {
@@ -146,6 +145,7 @@ class Tracer extends BaseTracer {
 
   register () {
     opentelemetry.trace.setGlobalTracerProvider(this)
+
     opentelemetry.context.setGlobalContextManager({
       active: () => {
         const activeSpan = this.scope().active()
@@ -153,6 +153,41 @@ class Tracer extends BaseTracer {
       },
       with: (span, fn, ...args) => {
         return this.scope().activate(span, () => fn.apply(...args))
+      }
+    })
+  }
+
+  // otel
+  getTracer (name, version) {
+    return this
+  }
+
+  startActiveSpan (name, arg2, arg3, arg4) {
+    let opts = {}
+    let ctx
+    let fn
+    if (arguments.length < 2) {
+      return
+    }
+    if (arguments.length === 2) {
+      fn = arg2
+    } else if (arguments.length === 3) {
+      opts = arg2
+      fn = arg3
+    } else {
+      opts = arg2
+      ctx = arg3
+      fn = arg4
+    }
+    const ddOptions = {}
+    ctx = ctx || this.scope().active()
+    if (ctx) {
+      ddOptions.childOf = ctx
+    }
+    return this._tracer.trace(name, ddOptions, (span) => {
+      span.addTags(opts.attributes)
+      if (typeof fn === 'function') {
+        return fn(span)
       }
     })
   }

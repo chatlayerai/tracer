@@ -1,7 +1,7 @@
 'use strict'
 
 const opentracing = require('opentracing')
-const { isInstrumentationSuppressed } = require('@opentelemetry/api')
+const { isTracingSuppressed } = require('@opentelemetry/core')
 const os = require('os')
 const Tracer = opentracing.Tracer
 const Reference = opentracing.Reference
@@ -39,10 +39,7 @@ class DatadogTracer extends Tracer {
     this._logInjection = config.logInjection
     this._debug = config.debug
     this._internalErrors = config.experimental.internalErrors
-    this._prioritySampler = new PrioritySampler(
-      config.env,
-      config.experimental.sampler
-    )
+    this._prioritySampler = new PrioritySampler(config.env, config.experimental.sampler)
     this._exporter = new Exporter(config, this._prioritySampler)
     this._processor = new SpanProcessor(this._exporter, this._prioritySampler)
     this._url = this._exporter._url
@@ -72,8 +69,12 @@ class DatadogTracer extends Tracer {
 
   _startSpanInternal (name, fields = {}, parent, type) {
     if (parent && parent._noop) return parent._noop
-    if (!isSampled(this._sampler, parent, type)) { return new NoopSpan(this, parent) }
-    if (parent && isInstrumentationSuppressed(parent)) { return new NoopSpan(this, parent) }
+    if (!isSampled(this._sampler, parent, type)) {
+      return new NoopSpan(this, parent)
+    }
+    if (parent && isTracingSuppressed(parent)) {
+      return new NoopSpan(this, parent)
+    }
 
     const tags = {
       'service.name': this._service
@@ -130,23 +131,15 @@ function getParent (references = []) {
     const ref = references[i]
 
     if (!(ref instanceof Reference)) {
-      log.error(
-        () => `Expected ${ref} to be an instance of opentracing.Reference`
-      )
+      log.error(() => `Expected ${ref} to be an instance of opentracing.Reference`)
       continue
     }
 
     const spanContext = ref.referencedContext()
     const type = ref.type()
 
-    if (
-      type !== REFERENCE_NOOP &&
-      spanContext &&
-      !(spanContext instanceof SpanContext)
-    ) {
-      log.error(
-        () => `Expected ${spanContext} to be an instance of SpanContext`
-      )
+    if (type !== REFERENCE_NOOP && spanContext && !(spanContext instanceof SpanContext)) {
+      log.error(() => `Expected ${spanContext} to be an instance of SpanContext`)
       continue
     }
 
