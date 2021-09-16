@@ -105,6 +105,7 @@ const httpServerOptions = {
 const httpClientOptions = {
   ...httpOptions,
   splitByDomain: true,
+  propagationBlocklist: ['url', /url/, url => true],
   hooks: {
     request: (span, req, res) => {}
   }
@@ -127,6 +128,8 @@ const graphqlOptions = {
   signature: false,
   hooks: {
     execute: (span, args, res) => {},
+    validate: (span, document, errors) => {},
+    parse: (span, source, document) => {}
   }
 };
 
@@ -154,6 +157,14 @@ const redisOptions = {
   service: 'test',
   allowlist: ['info', /auth/i, command => true],
   blocklist: ['info', /auth/i, command => true],
+};
+
+const sharedbOptions = {
+  service: 'test',
+  hooks: {
+    receive: (span, request) => {},
+    reply: (span, request, reply) => {},
+  },
 };
 
 tracer.use('amqp10');
@@ -231,6 +242,7 @@ tracer.use('restify');
 tracer.use('restify', httpServerOptions);
 tracer.use('rhea');
 tracer.use('router');
+tracer.use('sharedb', sharedbOptions);
 tracer.use('tedious');
 tracer.use('when');
 tracer.use('winston');
