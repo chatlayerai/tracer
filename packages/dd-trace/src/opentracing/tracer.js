@@ -1,6 +1,7 @@
 'use strict'
 
 const opentracing = require('opentracing')
+const { isTracingSuppressed } = require('@opentelemetry/core')
 const os = require('os')
 const Tracer = opentracing.Tracer
 const Reference = opentracing.Reference
@@ -55,6 +56,10 @@ class DatadogTracer extends Tracer {
     }
   }
 
+  addSpanProcessor (processor) {
+    this._processor = processor
+  }
+
   _startSpan (name, fields) {
     const reference = getParent(fields.references)
     const type = reference && reference.type()
@@ -64,19 +69,31 @@ class DatadogTracer extends Tracer {
 
   _startSpanInternal (name, fields = {}, parent, type) {
     if (parent && parent._noop) return parent._noop
-    if (!isSampled(this._sampler, parent, type)) return new NoopSpan(this, parent)
+    if (!isSampled(this._sampler, parent, type)) {
+      return new NoopSpan(this, parent)
+    }
+    if (parent && isTracingSuppressed(parent)) {
+      return new NoopSpan(this, parent)
+    }
 
     const tags = {
       'service.name': this._service
     }
 
-    const span = new Span(this, this._processor, this._sampler, this._prioritySampler, {
-      operationName: fields.operationName || name,
-      parent,
-      tags,
-      startTime: fields.startTime,
-      hostname: this._hostname
-    }, this._debug)
+    const span = new Span(
+      this,
+      this._processor,
+      this._sampler,
+      this._prioritySampler,
+      {
+        operationName: fields.operationName || name,
+        parent,
+        tags,
+        startTime: fields.startTime,
+        hostname: this._hostname
+      },
+      this._debug
+    )
 
     span.addTags(this._tags)
     span.addTags(fields.tags)

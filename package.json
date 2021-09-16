@@ -1,7 +1,7 @@
 {
-  "name": "dd-trace",
-  "version": "2.0.0-pre",
-  "description": "Datadog APM tracing client for JavaScript",
+  "name": "@chatlayer/tracer",
+  "version": "0.35.0",
+  "description": "Tracing client for Node.js",
   "main": "index.js",
   "typings": "index.d.ts",
   "scripts": {
@@ -32,7 +32,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/DataDog/dd-trace-js.git"
+    "url": "git+https://github.com/chatlayerai/tracer.git"
   },
   "keywords": [
     "datadog",
@@ -42,18 +42,23 @@
     "profiler",
     "profiling",
     "opentracing",
+    "opentelemetry",
     "apm"
   ],
-  "author": "Datadog Inc. <info@datadoghq.com>",
+  "author": "Chatlayer. <info@chatlayer.ai>",
   "license": "BSD-3-Clause",
   "bugs": {
-    "url": "https://github.com/DataDog/dd-trace-js/issues"
+    "url": "https://github.com/chatlayerai/tracer/issues"
   },
-  "homepage": "https://github.com/DataDog/dd-trace-js#readme",
+  "homepage": "https://github.com/chatlayerai/tracer#readme",
   "engines": {
     "node": ">=12"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.0.2",
+    "@opentelemetry/exporter-jaeger": "0.25.0",
+    "@opentelemetry/core": "^0.24.0",
+    "@opentelemetry/tracing": "0.24.0",
     "@datadog/native-metrics": "^1.0.0",
     "@datadog/pprof": "^0.1.3",
     "@datadog/sketches-js": "^1.0.4",

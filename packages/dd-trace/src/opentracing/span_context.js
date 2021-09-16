@@ -33,6 +33,10 @@ class DatadogSpanContext extends SpanContext {
   toSpanId () {
     return this._spanId.toString(10)
   }
+
+  getValue (key) {
+    return this._baggageItems[key]
+  }
 }
 
 module.exports = DatadogSpanContext

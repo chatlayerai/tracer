@@ -1,12 +1,15 @@
 'use strict'
 
 const opentracing = require('opentracing')
+const SPAN_STATUS_CODE = require('../../../../ext/status')
 const now = require('performance-now')
 const Span = opentracing.Span
 const SpanContext = require('./span_context')
 const constants = require('../constants')
 const id = require('../id')
 const tagger = require('../tagger')
+const TAGS = require('../../../../ext/tags')
+const KINDS = require('../../../../ext/kinds')
 
 const SAMPLE_RATE_METRIC_KEY = constants.SAMPLE_RATE_METRIC_KEY
 
@@ -16,17 +19,19 @@ class DatadogSpan extends Span {
 
     const operationName = fields.operationName
     const parent = fields.parent || null
-    const tags = Object.assign({
-      [SAMPLE_RATE_METRIC_KEY]: sampler.rate()
-    }, fields.tags)
+    const tags = Object.assign(
+      {
+        [SAMPLE_RATE_METRIC_KEY]: sampler.rate()
+      },
+      fields.tags
+    )
     const hostname = fields.hostname
-
     this._parentTracer = tracer
     this._debug = debug
     this._sampler = sampler
     this._processor = processor
     this._prioritySampler = prioritySampler
-
+    this._status = { code: SPAN_STATUS_CODE.UNSET }
     this._spanContext = this._createContext(parent)
     this._spanContext._name = operationName
     this._spanContext._tags = tags
@@ -35,14 +40,41 @@ class DatadogSpan extends Span {
     this._startTime = fields.startTime || this._getTime()
   }
 
+  get kind () {
+    const spanContext = this.context()
+    switch (spanContext._tags[TAGS.SPAN_KIND]) {
+      case KINDS.CLIENT: {
+        return 2
+      }
+      case KINDS.SERVER: {
+        return 1
+      }
+      case KINDS.PRODUCER: {
+        return 3
+      }
+      case KINDS.CONSUMER: {
+        return 4
+      }
+      default: {
+        return 0
+      }
+    }
+  }
+
+  get status () {
+    return this._status
+  }
+
+  setStatus (status) {
+    this._status = status
+  }
+
   toString () {
     const spanContext = this.context()
     const resourceName = spanContext._tags['resource.name']
-    const resource = resourceName.length > 100
-      ? `${resourceName.substring(0, 97)}...`
-      : resourceName
+    const resource = resourceName && resourceName.length > 100 ? `${resourceName.substring(0, 97)}...` : resourceName
     const json = JSON.stringify({
-      traceId: spanContext._traceId,
+      traceId: spanContext.traceId,
       spanId: spanContext._spanId,
       parentId: spanContext._parentId,
       service: spanContext._tags['service.name'],
@@ -112,6 +144,10 @@ class DatadogSpan extends Span {
     this._prioritySampler.sample(this, false)
   }
 
+  end (finishTime) {
+    return this._finish(finishTime)
+  }
+
   _finish (finishTime) {
     if (this._duration !== undefined) {
       return
@@ -123,6 +159,16 @@ class DatadogSpan extends Span {
     this._spanContext._trace.finished.push(this)
     this._spanContext._isFinished = true
     this._processor.process(this)
+  }
+
+  setValue () {
+    return this.setBaggageItem.apply(this, arguments)
+  }
+  getValue () {
+    return this.getBaggageItem.apply(this, arguments)
+  }
+  deleteValue () {
+    return this.deleteValue.apply(this, arguments)
   }
 }
 

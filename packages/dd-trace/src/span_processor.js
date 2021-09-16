@@ -7,10 +7,16 @@ class SpanProcessor {
     this._prioritySampler = prioritySampler
   }
 
+  // opentelemetry compat
+  onStart () {}
+  onEnd (span) {
+    this.process(span)
+  }
+  // end open telemetry compat
+
   process (span) {
     const spanContext = span.context()
     const trace = spanContext._trace
-
     if (trace.started.length === trace.finished.length) {
       this._prioritySampler.sample(spanContext)
 
@@ -20,14 +26,13 @@ class SpanProcessor {
         return
       }
 
-      const formattedSpans = trace.finished.map(format)
-      this._exporter.export(formattedSpans)
+      this._exporter.export(trace.finished.map(format))
       this._erase(trace)
     }
   }
 
   _erase (trace) {
-    trace.finished.forEach(span => {
+    trace.finished.forEach((span) => {
       span.context()._tags = {}
     })
 

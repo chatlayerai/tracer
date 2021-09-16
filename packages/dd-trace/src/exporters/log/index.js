@@ -1,5 +1,4 @@
 'use strict'
-
 const log = require('../../log')
 
 const TRACE_PREFIX = '{"traces":[['

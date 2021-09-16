@@ -1,6 +1,7 @@
 'use strict'
 
 const BaseTracer = require('opentracing').Tracer
+const opentelemetry = require('@opentelemetry/api')
 const NoopTracer = require('./noop/tracer')
 const DatadogTracer = require('./tracer')
 const Config = require('./config')
@@ -8,6 +9,7 @@ const Instrumenter = require('./instrumenter')
 const metrics = require('./metrics')
 const log = require('./log')
 const { setStartupLogInstrumenter } = require('./startup-log')
+const NoopSpan = require('./noop/span')
 
 const noop = new NoopTracer()
 
@@ -16,11 +18,15 @@ class Tracer extends BaseTracer {
     super()
     this._tracer = noop
     this._instrumenter = new Instrumenter(this)
-    this._deprecate = method => log.deprecate(`tracer.${method}`, [
-      `tracer.${method}() is deprecated.`,
-      'Please use tracer.startSpan() and tracer.scope() instead.',
-      'See: https://datadog.github.io/dd-trace-js/#manual-instrumentation.'
-    ].join(' '))
+    this._deprecate = (method) =>
+      log.deprecate(
+        `tracer.${method}`,
+        [
+          `tracer.${method}() is deprecated.`,
+          'Please use tracer.startSpan() and tracer.scope() instead.',
+          'See: https://datadog.github.io/dd-trace-js/#manual-instrumentation.'
+        ].join(' ')
+      )
   }
 
   init (options) {
@@ -59,7 +65,9 @@ class Tracer extends BaseTracer {
         log.error(e)
       }
     }
-
+    // register as global opentelemetry tracer
+    // and context manager
+    this.register()
     return this
   }
 
@@ -125,6 +133,10 @@ class Tracer extends BaseTracer {
     return this._tracer.currentSpan.apply(this._tracer, arguments)
   }
 
+  addSpanProcessor () {
+    return this._tracer.addSpanProcessor.apply(this._tracer, arguments)
+  }
+
   bind (callback) {
     this._deprecate('bind')
     return callback
@@ -136,6 +148,55 @@ class Tracer extends BaseTracer {
 
   getRumData () {
     return this._tracer.getRumData.apply(this._tracer, arguments)
+  }
+
+  register () {
+    opentelemetry.trace.setGlobalTracerProvider(this)
+
+    opentelemetry.context.setGlobalContextManager({
+      active: () => {
+        const activeSpan = this.scope().active()
+        return activeSpan || new NoopSpan(this, null)
+      },
+      with: (span, fn, ...args) => {
+        return this.scope().activate(span, () => fn.apply(...args))
+      }
+    })
+  }
+
+  // otel
+  getTracer (name, version) {
+    return this
+  }
+
+  startActiveSpan (name, arg2, arg3, arg4) {
+    let opts = {}
+    let ctx
+    let fn
+    if (arguments.length < 2) {
+      return
+    }
+    if (arguments.length === 2) {
+      fn = arg2
+    } else if (arguments.length === 3) {
+      opts = arg2
+      fn = arg3
+    } else {
+      opts = arg2
+      ctx = arg3
+      fn = arg4
+    }
+    const ddOptions = {}
+    ctx = ctx || this.scope().active()
+    if (ctx) {
+      ddOptions.childOf = ctx
+    }
+    return this._tracer.trace(name, ddOptions, (span) => {
+      span.addTags(opts.attributes)
+      if (typeof fn === 'function') {
+        return fn(span)
+      }
+    })
   }
 }
 
