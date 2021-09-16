@@ -5,7 +5,6 @@ const SPAN_STATUS_CODE = require('../../../../ext/status')
 const now = require('performance-now')
 const Span = opentracing.Span
 const SpanContext = require('./span_context')
-const metrics = require('../metrics')
 const constants = require('../constants')
 const id = require('../id')
 const tagger = require('../tagger')
@@ -39,10 +38,6 @@ class DatadogSpan extends Span {
     this._spanContext._hostname = hostname
 
     this._startTime = fields.startTime || this._getTime()
-
-    if (debug) {
-      this._handle = metrics.track(this)
-    }
   }
 
   get kind () {
@@ -163,10 +158,6 @@ class DatadogSpan extends Span {
     this._duration = finishTime - this._startTime
     this._spanContext._trace.finished.push(this)
     this._spanContext._isFinished = true
-
-    if (this._debug) {
-      this._handle.finish()
-    }
     this._processor.process(this)
   }
 

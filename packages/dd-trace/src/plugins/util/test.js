@@ -1,15 +1,16 @@
+const { getGitMetadata } = require('./git')
+const { getCIMetadata } = require('./ci')
+const { getRuntimeAndOSMetadata } = require('./env')
 const {
-  getGitMetadata,
   GIT_BRANCH,
   GIT_COMMIT_SHA,
   GIT_REPOSITORY_URL,
   GIT_TAG,
   GIT_COMMIT_AUTHOR_EMAIL,
   GIT_COMMIT_AUTHOR_NAME,
-  GIT_COMMIT_MESSAGE
-} = require('./git')
-const { getCIMetadata } = require('./ci')
-const { getRuntimeAndOSMetadata } = require('./env')
+  GIT_COMMIT_MESSAGE,
+  CI_WORKSPACE_PATH
+} = require('./tags')
 
 const TEST_FRAMEWORK = 'test.framework'
 const TEST_TYPE = 'test.type'
@@ -17,6 +18,7 @@ const TEST_NAME = 'test.name'
 const TEST_SUITE = 'test.suite'
 const TEST_STATUS = 'test.status'
 const TEST_PARAMETERS = 'test.parameters'
+const TEST_SKIP_REASON = 'test.skip_reason'
 
 const ERROR_TYPE = 'error.type'
 const ERROR_MESSAGE = 'error.msg'
@@ -31,6 +33,7 @@ module.exports = {
   TEST_SUITE,
   TEST_STATUS,
   TEST_PARAMETERS,
+  TEST_SKIP_REASON,
   ERROR_TYPE,
   ERROR_MESSAGE,
   ERROR_STACK,
@@ -50,7 +53,8 @@ function getTestEnvironmentMetadata (testFramework) {
     [GIT_TAG]: tag,
     [GIT_COMMIT_AUTHOR_NAME]: authorName,
     [GIT_COMMIT_AUTHOR_EMAIL]: authorEmail,
-    [GIT_COMMIT_MESSAGE]: commitMessage
+    [GIT_COMMIT_MESSAGE]: commitMessage,
+    [CI_WORKSPACE_PATH]: ciWorkspacePath
   } = ciMetadata
 
   const gitMetadata = getGitMetadata({
@@ -60,7 +64,8 @@ function getTestEnvironmentMetadata (testFramework) {
     tag,
     authorName,
     authorEmail,
-    commitMessage
+    commitMessage,
+    ciWorkspacePath
   })
 
   const runtimeAndOSMetadata = getRuntimeAndOSMetadata()
